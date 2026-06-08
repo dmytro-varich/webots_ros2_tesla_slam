@@ -1,0 +1,148 @@
+<?xml version="1.0" ?>
+<robot name="Tesla Webots">
+    <link name="base_link">
+        <visual name="body">
+            <origin xyz="-2.15 0 0.45" rpy="0 0 0"/>
+            <geometry>
+                <box size="5.5 2.1 0.7"/>
+            </geometry>
+            <material name="tesla_body">
+                <color rgba="0.12 0.16 0.18 1.0"/>
+            </material>
+        </visual>
+        <collision name="body_collision">
+            <origin xyz="-2.15 0 0.45" rpy="0 0 0"/>
+            <geometry>
+                <box size="5.5 2.1 0.7"/>
+            </geometry>
+        </collision>
+
+        <visual name="cabin">
+            <origin xyz="-2.35 0 1.02" rpy="0 0 0"/>
+            <geometry>
+                <box size="2.7 1.55 0.75"/>
+            </geometry>
+            <material name="tesla_cabin">
+                <color rgba="0.05 0.07 0.08 0.9"/>
+            </material>
+        </visual>
+        <collision name="cabin_collision">
+            <origin xyz="-2.35 0 1.02" rpy="0 0 0"/>
+            <geometry>
+                <box size="2.7 1.55 0.75"/>
+            </geometry>
+        </collision>
+
+        <visual name="front_left_wheel">
+            <origin xyz="-0.75 1.05 0.32" rpy="1.570796 0 0"/>
+            <geometry>
+                <cylinder radius="0.36" length="0.24"/>
+            </geometry>
+            <material name="tesla_tire">
+                <color rgba="0.01 0.01 0.01 1.0"/>
+            </material>
+        </visual>
+        <collision name="front_left_wheel_collision">
+            <origin xyz="-0.75 1.05 0.32" rpy="1.570796 0 0"/>
+            <geometry>
+                <cylinder radius="0.36" length="0.24"/>
+            </geometry>
+        </collision>
+
+        <visual name="front_right_wheel">
+            <origin xyz="-0.75 -1.05 0.32" rpy="1.570796 0 0"/>
+            <geometry>
+                <cylinder radius="0.36" length="0.24"/>
+            </geometry>
+            <material name="tesla_tire">
+                <color rgba="0.01 0.01 0.01 1.0"/>
+            </material>
+        </visual>
+        <collision name="front_right_wheel_collision">
+            <origin xyz="-0.75 -1.05 0.32" rpy="1.570796 0 0"/>
+            <geometry>
+                <cylinder radius="0.36" length="0.24"/>
+            </geometry>
+        </collision>
+
+        <visual name="rear_left_wheel">
+            <origin xyz="-4.05 1.05 0.32" rpy="1.570796 0 0"/>
+            <geometry>
+                <cylinder radius="0.36" length="0.24"/>
+            </geometry>
+            <material name="tesla_tire">
+                <color rgba="0.01 0.01 0.01 1.0"/>
+            </material>
+        </visual>
+        <collision name="rear_left_wheel_collision">
+            <origin xyz="-4.05 1.05 0.32" rpy="1.570796 0 0"/>
+            <geometry>
+                <cylinder radius="0.36" length="0.24"/>
+            </geometry>
+        </collision>
+
+        <visual name="rear_right_wheel">
+            <origin xyz="-4.05 -1.05 0.32" rpy="1.570796 0 0"/>
+            <geometry>
+                <cylinder radius="0.36" length="0.24"/>
+            </geometry>
+            <material name="tesla_tire">
+                <color rgba="0.01 0.01 0.01 1.0"/>
+            </material>
+        </visual>
+        <collision name="rear_right_wheel_collision">
+            <origin xyz="-4.05 -1.05 0.32" rpy="1.570796 0 0"/>
+            <geometry>
+                <cylinder radius="0.36" length="0.24"/>
+            </geometry>
+        </collision>
+    </link>
+    
+    <link name="lidar_front"/>
+    <joint name="lidar_front_joint" type="fixed">
+        <parent link="base_link"/>
+        <child link="lidar_front"/>
+        <origin xyz="-0.1 0 0.1" rpy="0 0 0"/>
+    </joint>
+
+    <link name="lidar_rear"/>
+    <joint name="lidar_rear_joint" type="fixed">
+        <parent link="base_link"/>
+        <child link="lidar_rear"/>
+        <origin xyz="-4.73 0 0.1" rpy="0 0 3.14159"/>
+    </joint>
+
+    <webots>
+        <device reference="lidar_front" type="Lidar">
+            <ros>
+                <enabled>true</enabled>
+                <updateRate>10</updateRate>
+                <topicName>/scan_front</topicName>
+                <alwaysOn>false</alwaysOn>
+                <frameName>lidar_front</frameName>
+            </ros>
+        </device>
+
+        <device reference="lidar_rear" type="Lidar">
+            <ros>
+                <enabled>true</enabled>
+                <updateRate>10</updateRate>
+                <topicName>/scan_rear</topicName>
+                <alwaysOn>false</alwaysOn>
+                <frameName>lidar_rear</frameName>
+            </ros>
+        </device>
+
+        <device reference="imu" type="InertialUnit">
+            <ros>
+                <enabled>true</enabled>
+                <updateRate>5</updateRate>
+                <topicName>/imu</topicName>
+                <alwaysOn>false</alwaysOn>
+                <frameName>imu_link</frameName>
+            </ros>
+        </device>
+
+        <plugin type="webots_ros2_tesla_slam.tesla_driver.TeslaDriver" />
+    </webots>
+</robot>
