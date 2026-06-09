@@ -8,7 +8,7 @@ from setuptools import setup
 package_name = 'webots_ros2_tesla_slam'
 data_files = []
 data_files.append(('share/ament_index/resource_index/packages', ['resource/' + package_name]))
-data_files.append(('share/' + package_name + '/launch', ['launch/robot_launch.py',]))
+data_files.append(('share/' + package_name + '/launch', glob('launch/*.py')))
 data_files.append(('share/' + package_name + '/worlds', [
     'worlds/tesla_world.wbt', 'worlds/.tesla_world.wbproj',
 ]))
@@ -22,7 +22,7 @@ data_files.append(('share/' + package_name + '/config', [
     'config/rviz_nav_config.rviz',
     'config/cartographer.lua'
 ]))
-data_files.append(('share/' + package_name + '/maps', ['maps/city_map.yaml', 'maps/city_map.pgm']))
+data_files.append(('share/' + package_name + '/maps', glob('maps/*')))
 data_files.append(('share/' + package_name + '/behavior_trees', glob('behavior_trees/*.xml')))
 
 setup(

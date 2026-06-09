@@ -1,4 +1,4 @@
-image: city_map.pgm
+image: city_map2.pgm
 mode: trinary
 resolution: 0.050
 origin: [-91.185, -32.658, 0]
