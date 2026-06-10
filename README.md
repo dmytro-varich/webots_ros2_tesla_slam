@@ -62,11 +62,13 @@ ros2 launch webots_ros2_tesla_slam tesla_webots_launch.py
 ```bash
 ros2 launch webots_ros2_tesla_slam slam_launch.py rviz:=true
 ```
+When Webots is launched by this file, RViz starts after the Tesla controller is connected.
 
 **Launch Navigation2:**
 ```bash
 ros2 launch webots_ros2_tesla_slam navigation2_launch.py rviz:=true
 ```
+When Webots is launched by this file, RViz starts after the Tesla controller is connected.
 
 **Compatibility launch file:**
 ```bash

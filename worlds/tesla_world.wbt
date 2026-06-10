@@ -1226,7 +1226,7 @@ OilBarrel {
   }
 }
 OilBarrel {
-  translation 33.037806 -107.04991 0.6
+  translation 33.037806 -110 0.6
   rotation 0 0 1 -1.5707953071795862
   name "oil barrel(1)"
   height 1.2
@@ -1239,7 +1239,7 @@ OilBarrel {
   }
 }
 OilBarrel {
-  translation 54.770003 -103.169 0.6
+  translation 54.770003 -100 0.6
   rotation 0 0 1 -1.5707953071795862
   name "oil barrel(2)"
   height 1.2
@@ -1252,7 +1252,7 @@ OilBarrel {
   }
 }
 OilBarrel {
-  translation 105.104 -45 0.6
+  translation 110 -45 0.6
   name "oil barrel(3)"
   height 1.2
   radius 0.4
@@ -1302,7 +1302,7 @@ OilBarrel {
   }
 }
 OilBarrel {
-  translation -20.1904 -48.6853 0.6
+  translation -20.1904 -53.5 0.6
   rotation 0 0 1 -1.7016953071795866
   name "oil barrel(7)"
   height 1.2
@@ -1455,16 +1455,18 @@ TeslaModel3 {
       name "lidar_front"
       rotationStep 0.0174533
       verticalFieldOfView 0.1
+      fieldOfView 2.62
       numberOfLayers 1
       minRange 1
       maxRange 25
     }
     Lidar {
-      translation -4.73 0 0.1
+      translation -4.73 0 0.15
       rotation 0 0 1 3.14159
       name "lidar_rear"
       rotationStep 0.0174533
       verticalFieldOfView 0.1
+      fieldOfView 2.62
       numberOfLayers 1
       minRange 1
       maxRange 25
@@ -1488,7 +1490,7 @@ TeslaModel3 {
       name "solid_front"
     }
     Solid {
-      translation -4.73 0 0.1
+      translation -4.7 0 0.14
       rotation 0 0 1 3.14159
       children [
         Shape {

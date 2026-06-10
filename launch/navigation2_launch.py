@@ -7,27 +7,129 @@
 
 import os
 
+import launch
 from ament_index_python.packages import (
     get_package_share_directory,
     get_packages_with_prefixes,
 )
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
+from launch.actions import (
+    DeclareLaunchArgument,
+    GroupAction,
+    IncludeLaunchDescription,
+)
 from launch.conditions import IfCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
-from launch.substitutions import LaunchConfiguration
+from launch.substitutions import LaunchConfiguration, PythonExpression
+from launch.substitutions.path_join_substitution import PathJoinSubstitution
 from launch_ros.actions import Node
+
+from webots_ros2_driver.webots_controller import WebotsController
+from webots_ros2_driver.webots_launcher import WebotsLauncher
+from webots_ros2_driver.wait_for_controller_connection import (
+    WaitForControllerConnection,
+)
 
 
 def generate_launch_description():
     package_dir = get_package_share_directory('webots_ros2_tesla_slam')
-    launch_dir = os.path.join(package_dir, 'launch')
 
     world = LaunchConfiguration('world')
     use_sim_time = LaunchConfiguration('use_sim_time')
     map_yaml = LaunchConfiguration('map')
     use_rviz = LaunchConfiguration('rviz')
     launch_webots = LaunchConfiguration('launch_webots')
+    launch_rviz_without_webots = PythonExpression([
+        "'", launch_webots, "' != 'true' and '", use_rviz, "' == 'true'"
+    ])
+
+    webots = WebotsLauncher(
+        world=PathJoinSubstitution([package_dir, 'worlds', world]),
+        ros2_supervisor=True
+    )
+
+    robot_description_path = os.path.join(
+        package_dir, 'resource', 'tesla_webots.urdf'
+    )
+    with open(robot_description_path, 'r') as f:
+        robot_description = f.read()
+
+    robot_state_publisher = Node(
+        package='robot_state_publisher',
+        executable='robot_state_publisher',
+        output='screen',
+        parameters=[
+            {'robot_description': robot_description},
+            {'use_sim_time': use_sim_time}
+        ]
+    )
+
+    tesla_driver = WebotsController(
+        robot_name='vehicle',
+        parameters=[
+            {
+                'robot_description': robot_description_path,
+                'use_sim_time': use_sim_time
+            }
+        ],
+        respawn=True
+    )
+
+    rviz_after_webots = Node(
+        package='rviz2',
+        executable='rviz2',
+        name='rviz2_nav',
+        arguments=[
+            '-d',
+            os.path.join(package_dir, 'config', 'rviz_nav_config.rviz')
+        ],
+        parameters=[
+            {'use_sim_time': use_sim_time}
+        ],
+        output='screen',
+        condition=IfCondition(use_rviz)
+    )
+
+    rviz_without_webots = Node(
+        package='rviz2',
+        executable='rviz2',
+        name='rviz2_nav',
+        arguments=[
+            '-d',
+            os.path.join(package_dir, 'config', 'rviz_nav_config.rviz')
+        ],
+        parameters=[
+            {'use_sim_time': use_sim_time}
+        ],
+        output='screen',
+        condition=IfCondition(launch_rviz_without_webots)
+    )
+
+    waiting_rviz = WaitForControllerConnection(
+        target_driver=tesla_driver,
+        nodes_to_start=[rviz_after_webots]
+    )
+
+    webots_group = GroupAction(
+        actions=[
+            robot_state_publisher,
+            webots,
+            webots._supervisor,
+            tesla_driver,
+            waiting_rviz,
+            launch.actions.RegisterEventHandler(
+                event_handler=launch.event_handlers.OnProcessExit(
+                    target_action=webots,
+                    on_exit=[
+                        launch.actions.EmitEvent(
+                            event=launch.events.Shutdown()
+                        )
+                    ],
+                )
+            ),
+        ],
+        condition=IfCondition(launch_webots),
+    )
 
     actions = [
         DeclareLaunchArgument(
@@ -58,18 +160,7 @@ def generate_launch_description():
             default_value='true',
             description='Launch Webots Tesla with lane follower disabled if true'
         ),
-        IncludeLaunchDescription(
-            PythonLaunchDescriptionSource(
-                os.path.join(launch_dir, 'tesla_webots_launch.py')
-            ),
-            launch_arguments=[
-                ('world', world),
-                ('use_sim_time', use_sim_time),
-                ('lane_follower', 'false'),
-                ('static_map_to_odom', 'false'),
-            ],
-            condition=IfCondition(launch_webots),
-        ),
+        webots_group,
     ]
 
     if 'nav2_bringup' in get_packages_with_prefixes():
@@ -134,20 +225,7 @@ def generate_launch_description():
                     'output_topic': '/cmd_ackermann'
                 }],
             ),
-            Node(
-                package='rviz2',
-                executable='rviz2',
-                name='rviz2_nav',
-                arguments=[
-                    '-d',
-                    os.path.join(package_dir, 'config', 'rviz_nav_config.rviz')
-                ],
-                parameters=[
-                    {'use_sim_time': use_sim_time}
-                ],
-                output='screen',
-                condition=IfCondition(use_rviz)
-            ),
+            rviz_without_webots,
         ]
     )
 
