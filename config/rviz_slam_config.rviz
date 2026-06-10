@@ -163,7 +163,7 @@ Visualization Manager:
       Axis: Z
       Channel Name: intensity
       Class: rviz_default_plugins/LaserScan
-      Color: 26; 95; 180
+      Color: 255; 120; 0
       Color Transformer: FlatColor
       Decay Time: 0
       Enabled: true
@@ -197,7 +197,7 @@ Visualization Manager:
       Axis: Z
       Channel Name: intensity
       Class: rviz_default_plugins/LaserScan
-      Color: 26; 95; 180
+      Color: 255; 120; 0
       Color Transformer: FlatColor
       Decay Time: 0
       Enabled: true
@@ -306,7 +306,7 @@ Visualization Manager:
   Value: true
   Views:
     Current:
-      Angle: 3.1649975776672363
+      Angle: 3.174997329711914
       Class: rviz_default_plugins/TopDownOrtho
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
@@ -316,7 +316,7 @@ Visualization Manager:
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Scale: -1.5684295892715454
+      Scale: -3.4010376930236816
       Target Frame: <Fixed Frame>
       Value: TopDownOrtho (rviz)
       X: 0

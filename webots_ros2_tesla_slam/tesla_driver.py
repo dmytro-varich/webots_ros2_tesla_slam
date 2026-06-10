@@ -15,6 +15,7 @@ from nav_msgs.msg import Odometry
 from tf2_ros import TransformBroadcaster
 
 MPS_TO_KMH = 3.6
+BASE_LINK_X_OFFSET = -2.15
 
 
 class TeslaDriver:
@@ -49,6 +50,7 @@ class TeslaDriver:
         orientation = self.__robot_node.getOrientation()
         velocity = self.__robot_node.getVelocity()
         yaw = math.atan2(orientation[3], orientation[0])
+        position = self.__base_link_position(position, yaw)
         stamp = self.__stamp_from_webots_time()
         if not all(math.isfinite(value) for value in [*position, *orientation, *velocity, yaw]):
             return
@@ -113,3 +115,10 @@ class TeslaDriver:
         relative_yaw = yaw - self.__initial_yaw
         relative_yaw = math.atan2(math.sin(relative_yaw), math.cos(relative_yaw))
         return x, y, relative_yaw
+
+    def __base_link_position(self, position, yaw):
+        return [
+            position[0] + math.cos(yaw) * BASE_LINK_X_OFFSET,
+            position[1] + math.sin(yaw) * BASE_LINK_X_OFFSET,
+            position[2],
+        ]

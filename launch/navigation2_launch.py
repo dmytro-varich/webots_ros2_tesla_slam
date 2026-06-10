@@ -39,8 +39,8 @@ def generate_launch_description():
     map_yaml = LaunchConfiguration('map')
     use_rviz = LaunchConfiguration('rviz')
     launch_webots = LaunchConfiguration('launch_webots')
-    launch_rviz_without_webots = PythonExpression([
-        "'", launch_webots, "' != 'true' and '", use_rviz, "' == 'true'"
+    launch_without_webots = PythonExpression([
+        "'", launch_webots, "' != 'true'"
     ])
 
     webots = WebotsLauncher(
@@ -90,6 +90,93 @@ def generate_launch_description():
         condition=IfCondition(use_rviz)
     )
 
+    nav2_nodes_after_webots = []
+    nav2_nodes_without_webots = []
+
+    if 'nav2_bringup' in get_packages_with_prefixes():
+        from nav2_common.launch import RewrittenYaml
+
+        bt_dir = os.path.join(package_dir, 'behavior_trees')
+        nav_to_pose_bt_xml = os.path.join(
+            bt_dir, 'navigate_to_pose_w_replanning_and_recovery.xml'
+        )
+        nav_through_poses_bt_xml = os.path.join(
+            bt_dir, 'navigate_through_poses_w_replanning_and_recovery.xml'
+        )
+        nav2_bt_dir = os.path.join(
+            get_package_share_directory('nav2_bt_navigator'),
+            'behavior_trees',
+        )
+
+        nav2_params = RewrittenYaml(
+            source_file=os.path.join(package_dir, 'config', 'nav2_params.yaml'),
+            root_key='',
+            param_rewrites={
+                'yaml_filename': map_yaml,
+                'bt_navigator.ros__parameters.default_nav_to_pose_bt_xml': nav_to_pose_bt_xml,
+                'bt_navigator.ros__parameters.default_nav_through_poses_bt_xml': nav_through_poses_bt_xml,
+                'bt_navigator.ros__parameters.bt_search_directories': str([bt_dir, nav2_bt_dir]),
+            },
+            convert_types=True,
+        )
+
+        nav2_bringup_source = PythonLaunchDescriptionSource(
+            os.path.join(
+                get_package_share_directory('nav2_bringup'),
+                'launch',
+                'bringup_launch.py'
+            )
+        )
+
+        nav2_launch_arguments = [
+            ('slam', 'False'),
+            ('map', map_yaml),
+            ('use_sim_time', use_sim_time),
+            ('autostart', 'True'),
+            ('use_composition', 'False'),
+            ('use_respawn', 'True'),
+            ('params_file', nav2_params),
+        ]
+
+        nav2_nodes_after_webots.append(
+            IncludeLaunchDescription(
+                nav2_bringup_source,
+                launch_arguments=nav2_launch_arguments,
+            )
+        )
+        nav2_nodes_without_webots.append(
+            IncludeLaunchDescription(
+                nav2_bringup_source,
+                launch_arguments=nav2_launch_arguments,
+            )
+        )
+
+    cmd_vel_to_ackermann_after_webots = Node(
+        package='webots_ros2_tesla_slam',
+        executable='cmd_vel_to_ackermann',
+        name='cmd_vel_to_ackermann',
+        output='screen',
+        parameters=[{
+            'use_sim_time': use_sim_time,
+            'wheelbase': 2.94,
+            'input_topic': '/cmd_vel',
+            'output_topic': '/cmd_ackermann'
+        }],
+    )
+
+    cmd_vel_to_ackermann_without_webots = Node(
+        package='webots_ros2_tesla_slam',
+        executable='cmd_vel_to_ackermann',
+        name='cmd_vel_to_ackermann',
+        output='screen',
+        parameters=[{
+            'use_sim_time': use_sim_time,
+            'wheelbase': 2.94,
+            'input_topic': '/cmd_vel',
+            'output_topic': '/cmd_ackermann'
+        }],
+    )
+
     rviz_without_webots = Node(
         package='rviz2',
         executable='rviz2',
@@ -102,12 +189,15 @@ def generate_launch_description():
             {'use_sim_time': use_sim_time}
         ],
         output='screen',
-        condition=IfCondition(launch_rviz_without_webots)
+        condition=IfCondition(use_rviz)
     )
 
-    waiting_rviz = WaitForControllerConnection(
+    waiting_navigation_nodes = WaitForControllerConnection(
         target_driver=tesla_driver,
-        nodes_to_start=[rviz_after_webots]
+        nodes_to_start=(
+            nav2_nodes_after_webots +
+            [cmd_vel_to_ackermann_after_webots, rviz_after_webots]
+        )
     )
 
     webots_group = GroupAction(
@@ -116,7 +206,7 @@ def generate_launch_description():
             webots,
             webots._supervisor,
             tesla_driver,
-            waiting_rviz,
+            waiting_navigation_nodes,
             launch.actions.RegisterEventHandler(
                 event_handler=launch.event_handlers.OnProcessExit(
                     target_action=webots,
@@ -129,6 +219,14 @@ def generate_launch_description():
             ),
         ],
         condition=IfCondition(launch_webots),
+    )
+
+    navigation_without_webots_group = GroupAction(
+        actions=(
+            nav2_nodes_without_webots +
+            [cmd_vel_to_ackermann_without_webots, rviz_without_webots]
+        ),
+        condition=IfCondition(launch_without_webots),
     )
 
     actions = [
@@ -161,72 +259,7 @@ def generate_launch_description():
             description='Launch Webots Tesla with lane follower disabled if true'
         ),
         webots_group,
+        navigation_without_webots_group,
     ]
-
-    if 'nav2_bringup' in get_packages_with_prefixes():
-        from nav2_common.launch import RewrittenYaml
-
-        bt_dir = os.path.join(package_dir, 'behavior_trees')
-        nav_to_pose_bt_xml = os.path.join(
-            bt_dir, 'navigate_to_pose_w_replanning_and_recovery.xml'
-        )
-        nav_through_poses_bt_xml = os.path.join(
-            bt_dir, 'navigate_through_poses_w_replanning_and_recovery.xml'
-        )
-        nav2_bt_dir = os.path.join(
-            get_package_share_directory('nav2_bt_navigator'),
-            'behavior_trees',
-        )
-
-        nav2_params = RewrittenYaml(
-            source_file=os.path.join(package_dir, 'config', 'nav2_params.yaml'),
-            root_key='',
-            param_rewrites={
-                'map_server.ros__parameters.yaml_filename': map_yaml,
-                'bt_navigator.ros__parameters.default_nav_to_pose_bt_xml': nav_to_pose_bt_xml,
-                'bt_navigator.ros__parameters.default_nav_through_poses_bt_xml': nav_through_poses_bt_xml,
-                'bt_navigator.ros__parameters.bt_search_directories': str([bt_dir, nav2_bt_dir]),
-            },
-            convert_types=True,
-        )
-
-        actions.append(
-            IncludeLaunchDescription(
-                PythonLaunchDescriptionSource(
-                    os.path.join(
-                        get_package_share_directory('nav2_bringup'),
-                        'launch',
-                        'bringup_launch.py'
-                    )
-                ),
-                launch_arguments=[
-                    ('slam', 'False'),
-                    ('map', map_yaml),
-                    ('use_sim_time', use_sim_time),
-                    ('autostart', 'True'),
-                    ('use_composition', 'False'),
-                    ('use_respawn', 'True'),
-                    ('params_file', nav2_params),
-                ],
-            )
-        )
-
-    actions.extend(
-        [
-            Node(
-                package='webots_ros2_tesla_slam',
-                executable='cmd_vel_to_ackermann',
-                name='cmd_vel_to_ackermann',
-                output='screen',
-                parameters=[{
-                    'use_sim_time': use_sim_time,
-                    'wheelbase': 2.94,
-                    'input_topic': '/cmd_vel',
-                    'output_topic': '/cmd_ackermann'
-                }],
-            ),
-            rviz_without_webots,
-        ]
-    )
 
     return LaunchDescription(actions)
