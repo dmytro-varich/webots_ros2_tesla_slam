@@ -1,6 +1,6 @@
 # Webots ROS2 Tesla SLAM
 
-Webots ROS2 Tesla SLAM is a simulation package for running the Webots Tesla Model 3 with ROS 2, Cartographer SLAM, Navigation2, and RViz. It provides a ready-to-launch environment for testing autonomous driving workflows in simulation: Webots handles the vehicle and world, ROS 2 publishes the robot model and sensor data, Cartographer can build an occupancy map, and Nav2 can use the saved map for navigation.
+Webots ROS2 Tesla SLAM is a simulation package for running the Webots Tesla Model 3 with ROS 2, Cartographer SLAM, Navigation2, and RViz. It provides a ready-to-launch environment for testing autonomous driving workflows in simulation: Webots handles the vehicle and world, ROS 2 publishes the robot model and sensor data, Cartographer can build an occupancy map, and Nav2 can use the saved map for navigation. 
 
 The package is based on the Cyberbotics Webots Tesla example and extends it with launch options, mapping/navigation configuration, RViz layouts, and a prepared map resource for repeatable SLAM and navigation experiments.
 
@@ -59,11 +59,13 @@ source install/setup.bash
 
 ### Launch Tesla in Webots
 
+Use the following command to start the Tesla simulation in Webots:
+
 ```bash
 ros2 launch webots_ros2_tesla_slam tesla_webots_launch.py
 ```
 
-Available parameters:
+**Available parameters:**
 
 | Parameter            | Default           | Description                                                                       |
 | -------------------- | ----------------- | --------------------------------------------------------------------------------- |
@@ -74,13 +76,13 @@ Available parameters:
 
 ### Launch Cartographer SLAM
 
+Use the following command to start Cartographer SLAM and RViz:
+
 ```bash
 ros2 launch webots_ros2_tesla_slam slam_launch.py rviz:=true
 ```
 
-When Webots is launched by this file, RViz starts after the Tesla controller is connected.
-
-Available parameters:
+**Available parameters:**
 
 | Parameter       | Default           | Description                                                                       |
 | --------------- | ----------------- | --------------------------------------------------------------------------------- |
@@ -91,21 +93,13 @@ Available parameters:
 
 ### Launch Navigation2
 
-```bash
-ros2 launch webots_ros2_tesla_slam navigation2_launch.py rviz:=true
-```
-
-When Webots is launched by this file, RViz starts after the Tesla controller is connected.
-
-Launch Navigation2 with a specific localization mode:
+Use the following command to start Navigation2 with AMCL localization and RViz:
 
 ```bash
-ros2 launch webots_ros2_tesla_slam navigation2_launch.py localization:=gps rviz:=true
 ros2 launch webots_ros2_tesla_slam navigation2_launch.py localization:=amcl rviz:=true
-ros2 launch webots_ros2_tesla_slam navigation2_launch.py localization:=odom rviz:=true
 ```
 
-Available parameters:
+**Available parameters:**
 
 | Parameter         | Default           | Description                                                                       |
 | ----------------- | ----------------- | --------------------------------------------------------------------------------- |
@@ -114,10 +108,7 @@ Available parameters:
 | `map`             | `city_map.yaml`   | Full path to the map yaml file for Nav2                                           |
 | `rviz`            | `false`           | Launch RViz for Navigation2 if true                                               |
 | `launch_webots`   | `true`            | Launch Webots Tesla with `lane_follower` disabled if true                         |
-| `localization`    | `gps`             | Localization mode: `gps`, `amcl`, or `odom`                                       |
-| `invert_steering` | `true`            | Invert Ackermann steering angle for the Webots Tesla steering convention          |
-
-The `gps` mode is the default navigation mode and uses GPS, IMU, wheel odometry, `navsat_transform`, and dual EKF filters. The `amcl` mode uses the saved map and a merged front/rear laser scan. The `odom` mode keeps `map` and `odom` aligned with a static transform and is intended for simple debugging or demonstrations.
+| `localization`    | `amcl`             | Localization mode: `amcl`, `gps`, or `odom`                                       |
 
 ## Project Structure
 

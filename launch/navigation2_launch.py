@@ -523,9 +523,9 @@ def generate_launch_description():
         ),
         DeclareLaunchArgument(
             'localization',
-            default_value='gps',
-            choices=['gps', 'amcl', 'odom'],
-            description='Localization mode: gps, amcl, or odom'
+            default_value='amcl',
+            choices=['amcl', 'gps', 'odom'],
+            description='Localization mode: amcl, gps or odom'
         ),
         webots_group,
         navigation_without_webots_group,
