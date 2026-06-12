@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2026 Dmytro Varich
+# SPDX-License-Identifier: Apache-2.0
+
 """webots_ros2_tesla_slam package setup file."""
 
 from glob import glob
@@ -16,18 +19,13 @@ data_files.append(('share/' + package_name + '/resource', [
     'resource/tesla_webots.urdf'
 ]))
 data_files.append(('share/' + package_name, ['package.xml']))
-data_files.append(('share/' + package_name + '/config', [
-    'config/nav2_params.yaml',
-    'config/rviz_slam_config.rviz',
-    'config/rviz_nav_config.rviz',
-    'config/cartographer.lua'
-]))
+data_files.append(('share/' + package_name + '/config', glob('config/*')))
 data_files.append(('share/' + package_name + '/maps', glob('maps/*')))
 data_files.append(('share/' + package_name + '/behavior_trees', glob('behavior_trees/*.xml')))
 
 setup(
     name=package_name,
-    version='2026.0.0',
+    version='2026.1.0',
     packages=[package_name],
     data_files=data_files,
     install_requires=['setuptools', 'launch'],
@@ -43,12 +41,14 @@ setup(
         'Programming Language :: Python',
         'Topic :: Software Development',
     ],
-    description='Tesla ROS2 interface for Webots using SLAM and Nav2.',
+    description='Tesla ROS2 interface for Webots using Cartographer and Nav2.',
     license='Apache License, Version 2.0',
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
             'cmd_vel_to_ackermann = webots_ros2_tesla_slam.cmd_vel_to_ackermann:main',
+            'dual_laser_scan_merger = webots_ros2_tesla_slam.dual_laser_scan_merger:main',
+            'gps_navsat_relay = webots_ros2_tesla_slam.gps_navsat_relay:main',
             'lane_follower = webots_ros2_tesla_slam.lane_follower:main',
             'tesla_driver = webots_ros2_tesla_slam.tesla_driver:main',
         ],

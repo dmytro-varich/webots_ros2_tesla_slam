@@ -12,9 +12,13 @@ ROS 2 interface example for the simulated Webots Tesla Model 3. For details on t
 ## Features
 
 * Webots Tesla Model 3 simulation with ROS 2 integration.
-* Single launch file for the vehicle, robot state publisher, Webots supervisor, and optional navigation stack.
-* Cartographer SLAM configuration for mapping the simulated world.
+* Dedicated launch files for simulation, Cartographer SLAM, and Navigation2.
+* Cartographer SLAM configuration for mapping the simulated world with front and rear lidars.
 * Navigation2 configuration for map-based autonomous navigation.
+* Selectable Navigation2 localization modes: GPS, AMCL, and odometry-only.
+* GPS, IMU, NavSat relay, and dual-EKF localization support.
+* Front/rear laser scan merger for AMCL localization.
+* Twist-to-Ackermann bridge for the simulated vehicle controller.
 * Prebuilt occupancy map for the default Tesla world.
 * Dedicated RViz configurations for SLAM and Nav2 workflows.
 * Simple lane-following node used when Nav2 is not enabled.
@@ -70,9 +74,11 @@ ros2 launch webots_ros2_tesla_slam navigation2_launch.py rviz:=true
 ```
 When Webots is launched by this file, RViz starts after the Tesla controller is connected.
 
-**Compatibility launch file:**
+**Launch Navigation2 with a specific localization mode:**
 ```bash
-ros2 launch webots_ros2_tesla_slam robot_launch.py slam:=true rviz_slam:=true
+ros2 launch webots_ros2_tesla_slam navigation2_launch.py localization:=gps rviz:=true
+ros2 launch webots_ros2_tesla_slam navigation2_launch.py localization:=amcl rviz:=true
+ros2 launch webots_ros2_tesla_slam navigation2_launch.py localization:=odom rviz:=true
 ```
 
 **Available parameters for `tesla_webots_launch.py`:**
@@ -102,18 +108,10 @@ ros2 launch webots_ros2_tesla_slam robot_launch.py slam:=true rviz_slam:=true
 | `map` | `city_map.yaml` | Full path to the map yaml file for Nav2 |
 | `rviz` | `false` | Launch RViz for Navigation2 if true |
 | `launch_webots` | `true` | Launch Webots Tesla with `lane_follower` disabled if true |
+| `localization` | `gps` | Localization mode: `gps`, `amcl`, or `odom` |
+| `invert_steering` | `true` | Invert Ackermann steering angle for the Webots Tesla steering convention |
 
-**Available parameters for `robot_launch.py`:**
-
-| Parameter | Default | Description |
-|-----------|---------|-------------|
-| `world` | `tesla_world.wbt` | Choose one of the world files from `/webots_ros2_tesla_slam/worlds` directory |
-| `nav` | `false` | Launch Navigation2 if true |
-| `map` | `city_map.yaml` | Full path to the map yaml file for Nav2 |
-| `slam` | `false` | Launch Cartographer SLAM if true |
-| `rviz_nav` | `false` | Launch RViz for Navigation2 if true |
-| `rviz_slam` | `false` | Launch RViz for SLAM if true |
-| `use_sim_time` | `true` | Use simulation time if true |
+The `gps` mode is the default navigation mode and uses GPS, IMU, wheel odometry, `navsat_transform`, and dual EKF filters. The `amcl` mode uses the saved map and a merged front/rear laser scan. The `odom` mode keeps `map` and `odom` aligned with a static transform and is intended for simple debugging or demonstrations.
 
 ## Project Structure
 
@@ -124,16 +122,17 @@ webots_ros2_tesla_slam/
 │   └── *.xml                     # Nav2 Behavior Tree XMLs. (used by `bt_navigator`)
 ├── config/
 │   ├── cartographer.lua          # Cartographer SLAM configuration.
+│   ├── dual_ekf_navsat.yaml      # GPS/NavSat dual-EKF localization configuration.
 │   ├── nav2_params.yaml          # Navigation2 parameters.
 │   ├── rviz_nav_config.rviz      # RViz layout for Nav2.
 │   └── rviz_slam_config.rviz     # RViz layout for SLAM.
 ├── launch/
 │   ├── navigation2_launch.py     # Navigation2 stack and optional RViz.
-│   ├── robot_launch.py           # Compatibility launch file.
 │   ├── slam_launch.py            # Cartographer SLAM and optional RViz.
 │   └── tesla_webots_launch.py    # Webots Tesla simulation and driver.
 ├── maps/
 │   ├── city_map.pgm              # Occupancy grid image for the default world.
+│   ├── city_map_raw.pgm          # Raw occupancy grid image.
 │   └── city_map.yaml             # Map metadata used by Nav2.
 ├── resource/
 │   ├── tesla_webots.urdf         # Robot description used by ROS 2 and Webots.
@@ -142,6 +141,9 @@ webots_ros2_tesla_slam/
 │   └── test_copyright.py         # Package lint/test helper.
 ├── webots_ros2_tesla_slam/
 │   ├── __init__.py
+│   ├── cmd_vel_to_ackermann.py   # Nav2 Twist to AckermannDrive bridge.
+│   ├── dual_laser_scan_merger.py # Front/rear LaserScan merger for AMCL.
+│   ├── gps_navsat_relay.py       # Webots GPS NavSatFix relay for robot_localization.
 │   ├── lane_follower.py          # Basic lane-following behavior.
 │   └── tesla_driver.py           # Webots Tesla ROS 2 driver.
 ├── worlds/
@@ -207,11 +209,8 @@ webots_ros2_tesla_slam/
 
 </details>
 
+## License
 
-## Licence
+This project is licensed under the **Apache License 2.0** - see the [LICENSE](LICENSE) file for details.
 
-This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) file for details.
-
-### Third-party components
-
-Code derived from [webots_ros2_tesla](https://github.com/cyberbotics/webots_ros2) remains under **Apache 2.0**. See file headers for copyright details.
+Code derived from [webots_ros2_tesla](https://github.com/cyberbotics/webots_ros2) also remains under **Apache 2.0**. See file headers for copyright details.

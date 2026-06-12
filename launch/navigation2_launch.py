@@ -1,9 +1,15 @@
-#!/usr/bin/env python
-
 # SPDX-FileCopyrightText: 2026 Dmytro Varich
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 
-"""Launch Navigation2 and optional RViz."""
+"""Launch Webots Tesla with Nav2 and selectable localization.
+
+This launch file starts the Tesla Webots driver, robot_state_publisher, Nav2,
+the Twist-to-Ackermann bridge, and optional RViz. The localization mode is
+selected with the `localization` argument:
+    - gps: GPS, IMU, wheel odometry, navsat_transform, and dual EKF
+    - amcl: map_server, AMCL, and merged front/rear laser scan
+    - odom: map_server with a static map -> odom transform for debugging/demo
+"""
 
 import os
 
@@ -17,6 +23,7 @@ from launch.actions import (
     DeclareLaunchArgument,
     GroupAction,
     IncludeLaunchDescription,
+    SetEnvironmentVariable,
 )
 from launch.conditions import IfCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
@@ -39,10 +46,26 @@ def generate_launch_description():
     map_yaml = LaunchConfiguration('map')
     use_rviz = LaunchConfiguration('rviz')
     launch_webots = LaunchConfiguration('launch_webots')
+    localization = LaunchConfiguration('localization')
+    invert_steering = LaunchConfiguration('invert_steering')
     launch_without_webots = PythonExpression([
         "'", launch_webots, "' != 'true'"
     ])
+    use_amcl = PythonExpression([
+        "'", localization, "' == 'amcl'"
+    ])
+    use_odom = PythonExpression([
+        "'", localization, "' == 'odom'"
+    ])
+    gps_enabled = PythonExpression([
+        "'", localization, "' == 'gps'"
+    ])
+    driver_odom_topic = PythonExpression([
+        "'/wheel/odom' if '", localization, "' == 'gps' else 'odom'"
+    ])
 
+    # Webots is still launched first; Nav2 starts only after the external
+    # vehicle controller connects to the simulation.
     webots = WebotsLauncher(
         world=PathJoinSubstitution([package_dir, 'worlds', world]),
         ros2_supervisor=True
@@ -69,7 +92,7 @@ def generate_launch_description():
         parameters=[
             {
                 'robot_description': robot_description_path,
-                'use_sim_time': use_sim_time
+                'use_sim_time': use_sim_time,
             }
         ],
         respawn=True
@@ -92,10 +115,15 @@ def generate_launch_description():
 
     nav2_nodes_after_webots = []
     nav2_nodes_without_webots = []
+    gps_nodes_after_webots = []
+    gps_nodes_without_webots = []
 
     if 'nav2_bringup' in get_packages_with_prefixes():
         from nav2_common.launch import RewrittenYaml
 
+        # RewrittenYaml lets the same nav2_params.yaml serve all localization
+        # modes while replacing runtime-only values such as the map path and
+        # behavior tree file paths.
         bt_dir = os.path.join(package_dir, 'behavior_trees')
         nav_to_pose_bt_xml = os.path.join(
             bt_dir, 'navigate_to_pose_w_replanning_and_recovery.xml'
@@ -108,15 +136,53 @@ def generate_launch_description():
             'behavior_trees',
         )
 
-        nav2_params = RewrittenYaml(
+        common_param_rewrites = {
+            'yaml_filename': map_yaml,
+            'bt_navigator.ros__parameters.default_nav_to_pose_bt_xml': nav_to_pose_bt_xml,
+            'bt_navigator.ros__parameters.default_nav_through_poses_bt_xml': nav_through_poses_bt_xml,
+            'bt_navigator.ros__parameters.bt_search_directories': str([bt_dir, nav2_bt_dir]),
+        }
+        amcl_param_rewrites = {
+            **common_param_rewrites,
+            # AMCL expects one LaserScan topic. The merger combines front and
+            # rear Webots lidars into /scan in the base_link frame.
+            'amcl.ros__parameters.scan_topic': '/scan',
+            'amcl.ros__parameters.tf_broadcast': 'true',
+            # AMCL mode keeps the planner forward-only while AMCL tuning is
+            # separated from the GPS-specific reversing setup.
+            'planner_server.ros__parameters.GridBased.motion_model_for_search': 'DUBIN',
+            'planner_server.ros__parameters.GridBased.reverse_penalty': '2.0',
+            'controller_server.ros__parameters.path_handler.enforce_path_inversion': 'false',
+            'controller_server.ros__parameters.FollowPath.allow_reversing': 'false',
+        }
+        odom_param_rewrites = {
+            **common_param_rewrites,
+            # Odom mode is a local-odometry debug/demo mode, so keep the same
+            # forward-only behavior as AMCL and avoid reverse path inversions.
+            'planner_server.ros__parameters.GridBased.motion_model_for_search': 'DUBIN',
+            'planner_server.ros__parameters.GridBased.reverse_penalty': '2.0',
+            'controller_server.ros__parameters.path_handler.enforce_path_inversion': 'false',
+            'controller_server.ros__parameters.FollowPath.allow_reversing': 'false',
+        }
+
+        amcl_nav2_params = RewrittenYaml(
             source_file=os.path.join(package_dir, 'config', 'nav2_params.yaml'),
             root_key='',
-            param_rewrites={
-                'yaml_filename': map_yaml,
-                'bt_navigator.ros__parameters.default_nav_to_pose_bt_xml': nav_to_pose_bt_xml,
-                'bt_navigator.ros__parameters.default_nav_through_poses_bt_xml': nav_through_poses_bt_xml,
-                'bt_navigator.ros__parameters.bt_search_directories': str([bt_dir, nav2_bt_dir]),
-            },
+            param_rewrites=amcl_param_rewrites,
+            convert_types=True,
+        )
+
+        odom_nav2_params = RewrittenYaml(
+            source_file=os.path.join(package_dir, 'config', 'nav2_params.yaml'),
+            root_key='',
+            param_rewrites=odom_param_rewrites,
+            convert_types=True,
+        )
+
+        gps_nav2_params = RewrittenYaml(
+            source_file=os.path.join(package_dir, 'config', 'nav2_params.yaml'),
+            root_key='',
+            param_rewrites=common_param_rewrites,
             convert_types=True,
         )
 
@@ -127,29 +193,219 @@ def generate_launch_description():
                 'bringup_launch.py'
             )
         )
+        nav2_navigation_source = PythonLaunchDescriptionSource(
+            os.path.join(
+                get_package_share_directory('nav2_bringup'),
+                'launch',
+                'navigation_launch.py'
+            )
+        )
 
-        nav2_launch_arguments = [
+        amcl_nav2_launch_arguments = [
             ('slam', 'False'),
             ('map', map_yaml),
             ('use_sim_time', use_sim_time),
             ('autostart', 'True'),
             ('use_composition', 'False'),
             ('use_respawn', 'True'),
-            ('params_file', nav2_params),
+            ('params_file', amcl_nav2_params),
         ]
 
+        odom_nav2_launch_arguments = [
+            ('use_sim_time', use_sim_time),
+            ('autostart', 'True'),
+            ('use_composition', 'False'),
+            ('use_respawn', 'True'),
+            ('params_file', odom_nav2_params),
+        ]
+
+        # AMCL localization uses the same front+rear scan coverage that was
+        # used by Cartographer when building the map.
+        amcl_scan_merger = Node(
+            package='webots_ros2_tesla_slam',
+            executable='dual_laser_scan_merger',
+            name='dual_laser_scan_merger',
+            output='screen',
+            parameters=[{
+                'use_sim_time': use_sim_time,
+                'front_scan_topic': '/scan_front',
+                'rear_scan_topic': '/scan_rear',
+                'output_topic': '/scan',
+            }],
+            condition=IfCondition(use_amcl),
+        )
+
+        # Odom localization deliberately keeps map and odom aligned. This mode
+        # is useful when testing navigation behavior without global correction.
+        def make_static_map_to_odom_node(condition):
+            return Node(
+                package='tf2_ros',
+                executable='static_transform_publisher',
+                name='map_to_odom_static_tf',
+                arguments=[
+                    '--x', '0.0',
+                    '--y', '0.0',
+                    '--z', '0.0',
+                    '--roll', '0.0',
+                    '--pitch', '0.0',
+                    '--yaw', '0.0',
+                    '--frame-id', 'map',
+                    '--child-frame-id', 'odom',
+                ],
+                condition=IfCondition(condition),
+            )
+
+        nav2_nodes_after_webots.append(amcl_scan_merger)
         nav2_nodes_after_webots.append(
             IncludeLaunchDescription(
                 nav2_bringup_source,
-                launch_arguments=nav2_launch_arguments,
+                launch_arguments=amcl_nav2_launch_arguments,
+                condition=IfCondition(use_amcl),
             )
         )
+        nav2_nodes_without_webots.append(amcl_scan_merger)
         nav2_nodes_without_webots.append(
             IncludeLaunchDescription(
                 nav2_bringup_source,
-                launch_arguments=nav2_launch_arguments,
+                launch_arguments=amcl_nav2_launch_arguments,
+                condition=IfCondition(use_amcl),
             )
         )
+
+        def make_odom_nodes():
+            return [
+                Node(
+                    package='nav2_map_server',
+                    executable='map_server',
+                    name='map_server',
+                    output='screen',
+                    parameters=[odom_nav2_params],
+                    condition=IfCondition(use_odom),
+                ),
+                Node(
+                    package='nav2_lifecycle_manager',
+                    executable='lifecycle_manager',
+                    name='lifecycle_manager_localization',
+                    output='screen',
+                    parameters=[{
+                        'use_sim_time': use_sim_time,
+                        'autostart': True,
+                        'node_names': ['map_server'],
+                    }],
+                    condition=IfCondition(use_odom),
+                ),
+                make_static_map_to_odom_node(use_odom),
+                IncludeLaunchDescription(
+                    nav2_navigation_source,
+                    launch_arguments=odom_nav2_launch_arguments,
+                    condition=IfCondition(use_odom),
+                ),
+            ]
+
+        nav2_nodes_after_webots.extend(make_odom_nodes())
+        nav2_nodes_without_webots.extend(make_odom_nodes())
+
+        gps_nav2_launch_arguments = [
+            ('use_sim_time', use_sim_time),
+            ('autostart', 'True'),
+            ('use_composition', 'False'),
+            ('use_respawn', 'True'),
+            ('params_file', gps_nav2_params),
+        ]
+        gps_localization_params = os.path.join(
+            package_dir, 'config', 'dual_ekf_navsat.yaml'
+        )
+
+        # GPS localization is assembled manually instead of using
+        # bringup_launch.py so that robot_localization/navsat nodes own the
+        # localization chain while Nav2 still runs the standard navigation set.
+        def make_gps_nodes():
+            return [
+                Node(
+                    package='nav2_map_server',
+                    executable='map_server',
+                    name='map_server',
+                    output='screen',
+                    parameters=[gps_nav2_params],
+                    condition=IfCondition(gps_enabled),
+                ),
+                Node(
+                    package='nav2_lifecycle_manager',
+                    executable='lifecycle_manager',
+                    name='lifecycle_manager_localization',
+                    output='screen',
+                    parameters=[{
+                        'use_sim_time': use_sim_time,
+                        'autostart': True,
+                        'node_names': ['map_server'],
+                    }],
+                    condition=IfCondition(gps_enabled),
+                ),
+                Node(
+                    package='webots_ros2_tesla_slam',
+                    executable='gps_navsat_relay',
+                    name='gps_navsat_relay',
+                    output='screen',
+                    parameters=[{
+                        'use_sim_time': use_sim_time,
+                        'input_topic': '/gps/fix',
+                        'output_topic': '/gps/navsat',
+                    }],
+                    condition=IfCondition(gps_enabled),
+                ),
+                Node(
+                    package='robot_localization',
+                    executable='ekf_node',
+                    name='ekf_filter_node_odom',
+                    output='screen',
+                    parameters=[
+                        gps_localization_params,
+                        {'use_sim_time': use_sim_time}
+                    ],
+                    remappings=[('odometry/filtered', 'odom')],
+                    condition=IfCondition(gps_enabled),
+                ),
+                Node(
+                    package='robot_localization',
+                    executable='ekf_node',
+                    name='ekf_filter_node_map',
+                    output='screen',
+                    parameters=[
+                        gps_localization_params,
+                        {
+                            'use_sim_time': use_sim_time,
+                            'publish_tf': True,
+                        }
+                    ],
+                    remappings=[('odometry/filtered', 'odometry/global')],
+                    condition=IfCondition(gps_enabled),
+                ),
+                Node(
+                    package='robot_localization',
+                    executable='navsat_transform_node',
+                    name='navsat_transform',
+                    output='screen',
+                    parameters=[
+                        gps_localization_params,
+                        {'use_sim_time': use_sim_time}
+                    ],
+                    remappings=[
+                        ('imu', '/imu'),
+                        ('gps/fix', '/gps/navsat'),
+                        ('odometry/filtered', '/odom'),
+                        ('odometry/gps', '/odometry/gps'),
+                    ],
+                    condition=IfCondition(gps_enabled),
+                ),
+                IncludeLaunchDescription(
+                    nav2_navigation_source,
+                    launch_arguments=gps_nav2_launch_arguments,
+                    condition=IfCondition(gps_enabled),
+                ),
+            ]
+
+        gps_nodes_after_webots.extend(make_gps_nodes())
+        gps_nodes_without_webots.extend(make_gps_nodes())
 
     cmd_vel_to_ackermann_after_webots = Node(
         package='webots_ros2_tesla_slam',
@@ -159,6 +415,7 @@ def generate_launch_description():
         parameters=[{
             'use_sim_time': use_sim_time,
             'wheelbase': 2.94,
+            'invert_steering': invert_steering,
             'input_topic': '/cmd_vel',
             'output_topic': '/cmd_ackermann'
         }],
@@ -172,6 +429,7 @@ def generate_launch_description():
         parameters=[{
             'use_sim_time': use_sim_time,
             'wheelbase': 2.94,
+            'invert_steering': invert_steering,
             'input_topic': '/cmd_vel',
             'output_topic': '/cmd_ackermann'
         }],
@@ -195,6 +453,7 @@ def generate_launch_description():
     waiting_navigation_nodes = WaitForControllerConnection(
         target_driver=tesla_driver,
         nodes_to_start=(
+            gps_nodes_after_webots +
             nav2_nodes_after_webots +
             [cmd_vel_to_ackermann_after_webots, rviz_after_webots]
         )
@@ -202,6 +461,10 @@ def generate_launch_description():
 
     webots_group = GroupAction(
         actions=[
+            SetEnvironmentVariable(
+                name='WEBOTS_ROS2_TESLA_ODOM_TOPIC',
+                value=driver_odom_topic,
+            ),
             robot_state_publisher,
             webots,
             webots._supervisor,
@@ -223,6 +486,7 @@ def generate_launch_description():
 
     navigation_without_webots_group = GroupAction(
         actions=(
+            gps_nodes_without_webots +
             nav2_nodes_without_webots +
             [cmd_vel_to_ackermann_without_webots, rviz_without_webots]
         ),
@@ -257,6 +521,17 @@ def generate_launch_description():
             'launch_webots',
             default_value='true',
             description='Launch Webots Tesla with lane follower disabled if true'
+        ),
+        DeclareLaunchArgument(
+            'localization',
+            default_value='gps',
+            choices=['gps', 'amcl', 'odom'],
+            description='Localization mode: gps, amcl, or odom'
+        ),
+        DeclareLaunchArgument(
+            'invert_steering',
+            default_value='true',
+            description='Invert Ackermann steering angle for Webots Tesla steering convention'
         ),
         webots_group,
         navigation_without_webots_group,

@@ -1,6 +1,17 @@
--- Cartographer configuration for webots_ros2_tesla.
--- Minimal 2D lidar + odometry setup.
-
+-- SPDX-FileCopyrightText: 2026 Dmytro Varich
+-- SPDX-License-Identifier: Apache-2.0
+--
+-- Cartographer SLAM configuration for webots_ros2_tesla_slam.
+--
+-- This configuration enables 2D SLAM (Simultaneous Localization and Mapping)
+-- using Cartographer. It processes laser scan data from two lidar sensors
+-- (front and rear) and creates a 2D occupancy grid map while tracking the
+-- robot's position. Key settings:
+--   - Uses 2 laser scans (front and rear lidars)
+--   - Odometry frame for pose estimation
+--   - 2D trajectory building
+--   - Range limits: 2.0m (min) to 25.0m (max)
+--
 include "map_builder.lua"
 include "trajectory_builder.lua"
 
@@ -17,7 +28,7 @@ options = {
   use_odometry = true,
   use_nav_sat = false,
   use_landmarks = false,
-  num_laser_scans = 2, -- 2 
+  num_laser_scans = 2,
   num_multi_echo_laser_scans = 0,
   num_subdivisions_per_laser_scan = 1,
   num_point_clouds = 0,

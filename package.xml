@@ -2,8 +2,8 @@
 <?xml-model href="http://download.ros.org/schema/package_format2.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="2">
   <name>webots_ros2_tesla_slam</name>
-  <version>2026.0.0</version>
-  <description>Tesla ROS2 interface for Webots using SLAM and Nav2.</description>
+  <version>2026.1.0</version>
+  <description>Tesla ROS2 interface for Webots using Cartographer and Nav2.</description>
 
   <maintainer email="varich.it@gmail.com">Dmytro Varich</maintainer>
   <license>Apache License 2.0</license>
@@ -25,6 +25,7 @@
   <exec_depend>nav_msgs</exec_depend>
   <exec_depend>sensor_msgs</exec_depend>
   <exec_depend>tf2_ros</exec_depend>
+  <exec_depend>robot_localization</exec_depend>
 
   <exec_depend>robot_state_publisher</exec_depend>
   <exec_depend>rviz2</exec_depend>

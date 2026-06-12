@@ -1,9 +1,13 @@
-#!/usr/bin/env python
-
 # SPDX-FileCopyrightText: 2026 Dmytro Varich
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 
-"""Launch Cartographer SLAM and optional RViz."""
+"""Launch Webots Tesla with Cartographer SLAM and optional RViz.
+
+This launch file is used to build or inspect maps. It starts the Webots Tesla
+driver, the vision lane follower, Cartographer, the occupancy grid publisher,
+and optional RViz. Cartographer consumes both front and rear laser scans plus
+vehicle odometry.
+"""
 
 import os
 
@@ -34,6 +38,8 @@ def generate_launch_description():
         "'", launch_webots, "' != 'true' and '", use_rviz, "' == 'true'"
     ])
 
+    # Webots can be disabled when another launch file already owns the
+    # simulation and this file is only providing SLAM/RViz nodes.
     webots = WebotsLauncher(
         world=PathJoinSubstitution([package_dir, 'worlds', world]),
         ros2_supervisor=True
@@ -71,6 +77,8 @@ def generate_launch_description():
         executable='lane_follower',
     )
 
+    # The map is built with both lidars, matching the merged scan used later
+    # by AMCL localization.
     cartographer = Node(
         package='cartographer_ros',
         executable='cartographer_node',
@@ -139,6 +147,8 @@ def generate_launch_description():
         nodes_to_start=[rviz_after_webots]
     )
 
+    # RViz waits for the Webots controller when Webots is launched here, which
+    # avoids starting visualization before simulation time and TF are available.
     webots_group = GroupAction(
         actions=[
             robot_state_publisher,

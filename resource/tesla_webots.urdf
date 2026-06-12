@@ -112,6 +112,20 @@
         <origin xyz="-2.58 0 0.1" rpy="0 0 3.14159"/>
     </joint>
 
+    <link name="gps_link"/>
+    <joint name="gps_joint" type="fixed">
+        <parent link="base_link"/>
+        <child link="gps_link"/>
+        <origin xyz="-0.35 0 0.95" rpy="0 0 0"/>
+    </joint>
+
+    <link name="imu_link"/>
+    <joint name="imu_joint" type="fixed">
+        <parent link="base_link"/>
+        <child link="imu_link"/>
+        <origin xyz="-0.35 0 0.95" rpy="0 0 0"/>
+    </joint>
+
     <webots>
         <device reference="lidar_front" type="Lidar">
             <ros>
@@ -133,12 +147,22 @@
             </ros>
         </device>
 
+        <device reference="gps" type="GPS">
+            <ros>
+                <enabled>true</enabled>
+                <updateRate>10</updateRate>
+                <topicName>/gps/fix</topicName>
+                <alwaysOn>true</alwaysOn>
+                <frameName>gps_link</frameName>
+            </ros>
+        </device>
+
         <device reference="imu" type="InertialUnit">
             <ros>
                 <enabled>true</enabled>
                 <updateRate>5</updateRate>
                 <topicName>/imu</topicName>
-                <alwaysOn>false</alwaysOn>
+                <alwaysOn>true</alwaysOn>
                 <frameName>imu_link</frameName>
             </ros>
         </device>

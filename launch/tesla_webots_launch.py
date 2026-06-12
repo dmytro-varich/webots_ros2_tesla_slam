@@ -1,10 +1,13 @@
-#!/usr/bin/env python
-
 # SPDX-FileCopyrightText: 1996-2023 Cyberbotics Ltd.
 # SPDX-FileCopyrightText: 2026 Dmytro Varich
 # SPDX-License-Identifier: Apache-2.0
 
-"""Launch only the Webots Tesla simulation and driver."""
+"""Launch only the Webots Tesla simulation and low-level ROS 2 driver.
+
+This launch file starts Webots, robot_state_publisher, and the Tesla external
+controller plugin. It can optionally run the vision lane follower or publish a
+static map -> odom transform for simple standalone demonstrations.
+"""
 
 import os
 
@@ -29,6 +32,8 @@ def generate_launch_description():
     launch_lane_follower = LaunchConfiguration('lane_follower')
     publish_static_map_to_odom = LaunchConfiguration('static_map_to_odom')
 
+    # This file owns Webots directly; higher-level SLAM/Nav2 launches can
+    # disable their Webots instance and reuse this simulation.
     webots = WebotsLauncher(
         world=PathJoinSubstitution([package_dir, 'worlds', world]),
         ros2_supervisor=True
@@ -67,6 +72,8 @@ def generate_launch_description():
         condition=IfCondition(launch_lane_follower),
     )
 
+    # Standalone mode has no localization node, so this optional transform keeps
+    # map and odom connected for simple visualization/debugging.
     map_to_odom = Node(
         package='tf2_ros',
         executable='static_transform_publisher',

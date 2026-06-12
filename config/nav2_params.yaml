@@ -1,3 +1,28 @@
+# SPDX-FileCopyrightText: 2026 Dmytro Varich
+# SPDX-License-Identifier: Apache-2.0
+#
+# Navigation2 (Nav2) configuration for autonomous robot navigation.
+#
+# This configuration sets up the complete Nav2 stack. The launch file selects
+# one of three localization modes: gps, amcl, or odom.
+#
+#   1. lifecycle_manager_localization: Manages localization-side lifecycle nodes
+#      - AMCL mode: map_server and AMCL
+#      - GPS mode: map_server only; robot_localization nodes are launched
+#        separately
+#      - Odom mode: map_server only, with a static map -> odom transform
+#
+#   2. lifecycle_manager_navigation: Manages path planning and control
+#      - planner_server: Global path planning
+#      - controller_server: Local path tracking and obstacle avoidance
+#      - smoother_server: Post-processing for smooth trajectories
+#      - velocity_smoother: Velocity command smoothing
+#      - bt_navigator: Behavior tree navigation executor
+#      - waypoint_follower: Multi-goal navigation support
+#
+# Configuration includes sensor topics, map settings, and planning parameters
+# optimized for the Tesla robot in Webots simulation.
+#
 lifecycle_manager_localization:
   ros__parameters:
     autostart: true
@@ -16,13 +41,10 @@ lifecycle_manager_navigation:
      - 'controller_server'
      - 'smoother_server'
      - 'planner_server'
-     - 'route_server'
      - 'behavior_server'
      - 'velocity_smoother'
-     - 'collision_monitor'
      - 'bt_navigator'
      - 'waypoint_follower'
-     - 'docking_server'
     attempt_respawn_reconnection: true
     bond_respawn_max_duration: 10.0
     bond_heartbeat_period: 0.25
@@ -47,8 +69,9 @@ map_saver:
 amcl:
   ros__parameters:
     use_sim_time: true
-    # Webots Tesla URDF publishes LaserScan on /scan_front and /scan_rear.
-    # Nav2 AMCL expects a single scan topic, so we use the front lidar.
+    # Webots publishes front and rear laser scans. In localization:=amcl mode,
+    # the launch file rewrites this to /scan, produced by dual_laser_scan_merger.
+    # The /scan_front value is kept as a direct fallback/default.
     scan_topic: "/scan_front"
     map_topic: "map"
     first_map_only: false
@@ -61,8 +84,8 @@ amcl:
     pf_z: 0.99
     resample_interval: 1
     random_seed: -1
-    update_min_d: 0.02
-    update_min_a: 0.02
+    update_min_d: 0.20
+    update_min_a: 0.10
     save_pose_rate: 10.0
     always_reset_initial_pose: false
     # This pose is in the saved map frame, not in absolute Webots world
@@ -75,10 +98,10 @@ amcl:
       z: 0.0
       yaw: 0.0
     robot_model_type: "nav2_amcl::DifferentialMotionModel"
-    alpha1: 0.2
-    alpha2: 0.2
-    alpha3: 0.2
-    alpha4: 0.2
+    alpha1: 0.05
+    alpha2: 0.05
+    alpha3: 0.05
+    alpha4: 0.05
     laser_model_type: "likelihood_field"
     laser_min_range: -1.0
     laser_max_range: -1.0
@@ -94,14 +117,14 @@ amcl:
     beam_skip_error_threshold: 0.9
     beam_skip_threshold: 0.3
     tf_broadcast: true
-    transform_tolerance: 3.0
+    transform_tolerance: 1.0
     bond_heartbeat_period: 0.1
     introspection_mode: "disabled"
 
 planner_server:
   ros__parameters:
     use_sim_time: true
-    expected_planner_frequency: 2.0
+    expected_planner_frequency: 0.5
     allow_partial_planning: true
     costmap_update_timeout: 1.0
     bond_heartbeat_period: 0.25
@@ -112,21 +135,21 @@ planner_server:
       tolerance: 0.5
       allow_unknown: true
       downsample_costmap: true
-      downsampling_factor: 2
-      max_iterations: 1000000
-      max_planning_time: 2.0
-      motion_model_for_search: "DUBIN"
-      angle_quantization_bins: 72
+      downsampling_factor: 3
+      max_iterations: 200000
+      max_planning_time: 5.0
+      motion_model_for_search: "REEDS_SHEPP"
+      angle_quantization_bins: 32
       minimum_turning_radius: 3.0
-      reverse_penalty: 2.0
+      reverse_penalty: 1.2
       change_penalty: 0.1
       non_straight_penalty: 1.5
       cost_penalty: 1.4
       analytic_expansion_ratio: 3.5
       analytic_expansion_max_length: 22.0
-      lookup_table_size: 25.0
+      lookup_table_size: 15.0
       cache_obstacle_heuristic: true
-      use_final_approach_orientation: true
+      use_final_approach_orientation: false
 
 smoother_server:
   ros__parameters:
@@ -221,15 +244,15 @@ local_costmap:
       inflation_layer:
         plugin: "nav2_costmap_2d::InflationLayer"
         enabled: true
-        inflation_radius: 1.5
+        inflation_radius: 3.5
         cost_scaling_factor: 3.0
 
 controller_server:
   ros__parameters:
     use_sim_time: true
-    controller_frequency: 20.0
-    costmap_update_timeout: 0.30
-    failure_tolerance: 0.3
+    controller_frequency: 10.0
+    costmap_update_timeout: 1.0
+    failure_tolerance: 1.0
     odom_topic: "odom"
     odom_duration: 0.3
     enable_stamped_cmd_vel: false
@@ -243,26 +266,30 @@ controller_server:
     progress_checker:
       plugin: "nav2_controller::SimpleProgressChecker"
       required_movement_radius: 0.5
-      movement_time_allowance: 10.0
+      movement_time_allowance: 30.0
     goal_checker:
       plugin: "nav2_controller::SimpleGoalChecker"
-      xy_goal_tolerance: 0.4
+      xy_goal_tolerance: 0.8
       yaw_goal_tolerance: 6.28
       stateful: true
     path_handler:
       plugin: "nav2_controller::FeasiblePathHandler"
       prune_distance: 1.5
-      enforce_path_inversion: false
+      enforce_path_inversion: true
     FollowPath:
       plugin: "nav2_regulated_pure_pursuit_controller::RegulatedPurePursuitController"
-      desired_linear_velocity: 4.0
-      lookahead_dist: 1.5
-      min_lookahead_dist: 0.6
-      max_lookahead_dist: 2.5
+      desired_linear_velocity: 6.0
+      lookahead_dist: 2.5
+      min_lookahead_dist: 1.0
+      max_lookahead_dist: 4.0
       lookahead_time: 1.5
+      use_rotate_to_heading: false
+      allow_reversing: true
       use_regulated_linear_velocity_scaling: true
       regulated_linear_velocity_min_radius: 4.5
-      regulated_linear_velocity_min_speed: 0.8
+      regulated_linear_velocity_min_speed: 1.8
+      min_approach_linear_velocity: 0.4
+      approach_velocity_scaling_dist: 3.0
       use_cost_regulated_linear_velocity_scaling: false
       cost_scaling_dist: 0.6
       cost_scaling_gain: 1.0
@@ -297,7 +324,7 @@ bt_navigator:
     odom_topic: "odom"
     transform_tolerance: 0.1
     bt_loop_duration: 10
-    default_server_timeout: 60
+    default_server_timeout: 120
     default_cancel_timeout: 50
     introspection_mode: "disabled"
     default_nav_to_pose_bt_xml: "navigate_to_pose_w_replanning_and_recovery.xml"
@@ -364,26 +391,26 @@ collision_monitor:
         points: "[[-2.3, -1.0], [-2.3, 1.0], [5.0, 1.0], [5.0, -1.0]]"
         linear_min: 1.5
         linear_max: 5.0
-        theta_min: -1.0
-        theta_max: 1.0
+        theta_min: -1.5
+        theta_max: 1.5
       slow_forward:
         points: "[[-2.3, -1.0], [-2.3, 1.0], [3.0, 1.0], [3.0, -1.0]]"
         linear_min: 0.05
         linear_max: 1.5
-        theta_min: -1.0
-        theta_max: 1.0
+        theta_min: -1.5
+        theta_max: 1.5
       backward:
         points: "[[-3.2, -1.0], [-3.2, 1.0], [2.3, 1.0], [2.3, -1.0]]"
         linear_min: -2.0
         linear_max: -0.05
-        theta_min: -1.0
-        theta_max: 1.0
+        theta_min: -1.5
+        theta_max: 1.5
       stopped:
         points: "[[-2.6, -1.1], [-2.6, 1.1], [2.6, 1.1], [2.6, -1.1]]"
         linear_min: -0.05
         linear_max: 0.05
-        theta_min: -1.0
-        theta_max: 1.0
+        theta_min: -1.5
+        theta_max: 1.5
     PolygonSlowdown:
       type: "polygon"
       points: "[[-4.5, -1.2], [-4.5, 1.2], [6.5, 1.2], [6.5, -1.2]]"

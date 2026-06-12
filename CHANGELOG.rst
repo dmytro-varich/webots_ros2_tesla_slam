@@ -2,13 +2,24 @@
 Changelog for package webots_ros2_tesla_slam
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+2026.1.0 (2026-06-11)
+------------------
+* Split launch setup into dedicated simulation, SLAM, and Navigation2 entry points.
+* Added selectable Navigation2 localization modes: GPS, AMCL, and odometry-only.
+* Added GPS, IMU, NavSat relay, and dual-EKF GPS localization support.
+* Added a front/rear laser scan merger for AMCL localization.
+* Updated Cartographer configuration for front and rear lidar scans.
+* Updated Webots world obstacles, sensors, and map assets.
+* Tuned Nav2 planning, control, costmaps, and Ackermann command conversion.
+* Improved odometry, IMU, and TF publishing for the Tesla driver.
+
 2026.0.0 (2026-05-15)
 ------------------
-* Based on webots_ros2_tesla package with modifications.
+* Based on the webots_ros2_tesla package with project-specific modifications.
 * Added SLAM and Nav2 functionality.
-* Added config, maps, behavior_trees folders with files.
-* Edited launch, resource, worlds folders with files.
-* Edited lane_follower, tesla_driver nodes to support SLAM and Nav2.
+* Added configuration, maps, and behavior tree files.
+* Updated launch, resource, and world files.
+* Updated lane_follower and tesla_driver nodes to support SLAM and Nav2.
 
 2023.1.0 (2023-06-29)
 ------------------
