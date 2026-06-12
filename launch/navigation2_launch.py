@@ -47,7 +47,6 @@ def generate_launch_description():
     use_rviz = LaunchConfiguration('rviz')
     launch_webots = LaunchConfiguration('launch_webots')
     localization = LaunchConfiguration('localization')
-    invert_steering = LaunchConfiguration('invert_steering')
     launch_without_webots = PythonExpression([
         "'", launch_webots, "' != 'true'"
     ])
@@ -415,7 +414,7 @@ def generate_launch_description():
         parameters=[{
             'use_sim_time': use_sim_time,
             'wheelbase': 2.94,
-            'invert_steering': invert_steering,
+            'invert_steering': True,
             'input_topic': '/cmd_vel',
             'output_topic': '/cmd_ackermann'
         }],
@@ -429,7 +428,7 @@ def generate_launch_description():
         parameters=[{
             'use_sim_time': use_sim_time,
             'wheelbase': 2.94,
-            'invert_steering': invert_steering,
+            'invert_steering': True,
             'input_topic': '/cmd_vel',
             'output_topic': '/cmd_ackermann'
         }],
@@ -527,11 +526,6 @@ def generate_launch_description():
             default_value='gps',
             choices=['gps', 'amcl', 'odom'],
             description='Localization mode: gps, amcl, or odom'
-        ),
-        DeclareLaunchArgument(
-            'invert_steering',
-            default_value='true',
-            description='Invert Ackermann steering angle for Webots Tesla steering convention'
         ),
         webots_group,
         navigation_without_webots_group,

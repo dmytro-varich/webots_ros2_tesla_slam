@@ -57,59 +57,65 @@ source install/setup.bash
 
 ## Usage
 
-**Launch only Tesla in Webots:**
+### Launch Tesla in Webots
+
 ```bash
 ros2 launch webots_ros2_tesla_slam tesla_webots_launch.py
 ```
 
-**Launch Cartographer SLAM:**
+Available parameters:
+
+| Parameter            | Default           | Description                                                                       |
+| -------------------- | ----------------- | --------------------------------------------------------------------------------- |
+| `world`              | `tesla_world.wbt` | Choose one of the world files from the `/webots_ros2_tesla_slam/worlds` directory |
+| `use_sim_time`       | `true`            | Use simulation time if true                                                       |
+| `lane_follower`      | `true`            | Launch the lane follower if true                                                  |
+| `static_map_to_odom` | `false`           | Publish a static `map` to `odom` transform if true                                |
+
+### Launch Cartographer SLAM
+
 ```bash
 ros2 launch webots_ros2_tesla_slam slam_launch.py rviz:=true
 ```
+
 When Webots is launched by this file, RViz starts after the Tesla controller is connected.
 
-**Launch Navigation2:**
+Available parameters:
+
+| Parameter       | Default           | Description                                                                       |
+| --------------- | ----------------- | --------------------------------------------------------------------------------- |
+| `world`         | `tesla_world.wbt` | Choose one of the world files from the `/webots_ros2_tesla_slam/worlds` directory |
+| `use_sim_time`  | `true`            | Use simulation time if true                                                       |
+| `rviz`          | `false`           | Launch RViz for SLAM if true                                                      |
+| `launch_webots` | `true`            | Launch Webots Tesla with `lane_follower` enabled if true                          |
+
+### Launch Navigation2
+
 ```bash
 ros2 launch webots_ros2_tesla_slam navigation2_launch.py rviz:=true
 ```
+
 When Webots is launched by this file, RViz starts after the Tesla controller is connected.
 
-**Launch Navigation2 with a specific localization mode:**
+Launch Navigation2 with a specific localization mode:
+
 ```bash
 ros2 launch webots_ros2_tesla_slam navigation2_launch.py localization:=gps rviz:=true
 ros2 launch webots_ros2_tesla_slam navigation2_launch.py localization:=amcl rviz:=true
 ros2 launch webots_ros2_tesla_slam navigation2_launch.py localization:=odom rviz:=true
 ```
 
-**Available parameters for `tesla_webots_launch.py`:**
+Available parameters:
 
-| Parameter | Default | Description |
-|-----------|---------|-------------|
-| `world` | `tesla_world.wbt` | Choose one of the world files from `/webots_ros2_tesla_slam/worlds` directory |
-| `use_sim_time` | `true` | Use simulation time if true |
-| `lane_follower` | `true` | Launch the lane follower if true |
-| `static_map_to_odom` | `false` | Publish a static `map` to `odom` transform if true |
-
-**Available parameters for `slam_launch.py`:**
-
-| Parameter | Default | Description |
-|-----------|---------|-------------|
-| `world` | `tesla_world.wbt` | Choose one of the world files from `/webots_ros2_tesla_slam/worlds` directory |
-| `use_sim_time` | `true` | Use simulation time if true |
-| `rviz` | `false` | Launch RViz for SLAM if true |
-| `launch_webots` | `true` | Launch Webots Tesla with `lane_follower` enabled if true |
-
-**Available parameters for `navigation2_launch.py`:**
-
-| Parameter | Default | Description |
-|-----------|---------|-------------|
-| `world` | `tesla_world.wbt` | Choose one of the world files from `/webots_ros2_tesla_slam/worlds` directory |
-| `use_sim_time` | `true` | Use simulation time if true |
-| `map` | `city_map.yaml` | Full path to the map yaml file for Nav2 |
-| `rviz` | `false` | Launch RViz for Navigation2 if true |
-| `launch_webots` | `true` | Launch Webots Tesla with `lane_follower` disabled if true |
-| `localization` | `gps` | Localization mode: `gps`, `amcl`, or `odom` |
-| `invert_steering` | `true` | Invert Ackermann steering angle for the Webots Tesla steering convention |
+| Parameter         | Default           | Description                                                                       |
+| ----------------- | ----------------- | --------------------------------------------------------------------------------- |
+| `world`           | `tesla_world.wbt` | Choose one of the world files from the `/webots_ros2_tesla_slam/worlds` directory |
+| `use_sim_time`    | `true`            | Use simulation time if true                                                       |
+| `map`             | `city_map.yaml`   | Full path to the map yaml file for Nav2                                           |
+| `rviz`            | `false`           | Launch RViz for Navigation2 if true                                               |
+| `launch_webots`   | `true`            | Launch Webots Tesla with `lane_follower` disabled if true                         |
+| `localization`    | `gps`             | Localization mode: `gps`, `amcl`, or `odom`                                       |
+| `invert_steering` | `true`            | Invert Ackermann steering angle for the Webots Tesla steering convention          |
 
 The `gps` mode is the default navigation mode and uses GPS, IMU, wheel odometry, `navsat_transform`, and dual EKF filters. The `amcl` mode uses the saved map and a merged front/rear laser scan. The `odom` mode keeps `map` and `odom` aligned with a static transform and is intended for simple debugging or demonstrations.
 
@@ -164,33 +170,46 @@ webots_ros2_tesla_slam/
 
 <img src="assets/webots_simulation.gif" alt="Webots simulation with Tesla Model 3">
 
-*Webots simulation of Tesla Model 3 showing LiDAR sensors (front and rear)*
+*Webots simulation of the Tesla Model 3 showing LiDAR sensors (front and rear) and GPS, IMU mounted on top*
 
 </div>
 
 </details>
 
 <details>
-<summary>🗺️ Click to see RViz while building map with Cartographer</summary>
+<summary>🗺️ Click to see Cartographer SLAM in RViz</summary>
 
 <div align="center">
 
 <img src="assets/rviz_cartographer.png" alt="RViz visualization during Cartographer SLAM mapping">
 
-*RViz interface during SLAM mapping using Cartographer algorithm - real-time map building and robot pose estimation*
+*RViz during Cartographer SLAM - real-time map building and robot pose estimation*
 
 </div>
 
 </details>
 
 <details>
-<summary>🗺️ Click to see generated occupancy map</summary>
+<summary>🗺️ Click to see raw Cartographer map output</summary>
 
 <div align="center">
 
-<img src="assets/cartographer_map.png" alt="Occupancy map built by Cartographer">
+<img src="assets/cartographer_map_raw.png" alt="Raw occupancy map generated by Cartographer">
 
-*Example of the occupancy grid map generated by Cartographer SLAM*
+*Raw occupancy grid generated by Cartographer before post-processing*
+
+</div>
+
+</details>
+
+<details>
+<summary>🧹 Click to see post-processed map</summary>
+
+<div align="center">
+
+<img src="assets/cartographer_map_postprocessed.png" alt="Post-processed occupancy map">
+
+*Post-processed occupancy grid used by Navigation2*
 
 </div>
 

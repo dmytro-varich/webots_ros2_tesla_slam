@@ -27,7 +27,7 @@ from rclpy.qos import qos_profile_sensor_data, QoSReliabilityPolicy
 from rclpy.node import Node
 
 CONTROL_COEFFICIENT = 0.0005
-TARGET_SPEED_KMH = 5.0
+TARGET_SPEED_KMH = 20.0
 KMH_TO_MPS = 1.0 / 3.6
 
 
