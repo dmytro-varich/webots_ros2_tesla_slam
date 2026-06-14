@@ -1,0 +1,124 @@
+# SPDX-FileCopyrightText: 2026 Dmytro Varich
+# SPDX-License-Identifier: Apache-2.0
+#
+# Dual Extended Kalman Filter (EKF) and NavSat configuration for GPS localization.
+#
+# This configuration uses two robot_localization EKF instances plus
+# navsat_transform:
+#
+#   1. ekf_filter_node_odom: Fuses wheel odometry from /wheel/odom and yaw from
+#      /imu.
+#      Produces: /odom as local filtered odometry.
+#      The Webots Tesla driver publishes the odom -> base_link TF.
+#      Used for short-term position tracking and velocity estimation.
+#
+#   2. navsat_transform: Converts /gps/navsat into /odometry/gps using /odom
+#      and /imu for heading/context.
+#
+#   3. ekf_filter_node_map: Fuses /odom, /odometry/gps, and /imu.
+#      Produces: /odometry/global in the map frame. In localization:=gps mode,
+#      the launch file enables publish_tf so this EKF publishes map -> odom.
+#
+# Configuration includes:
+#   - 30 Hz update frequency
+#   - 2D mode (ignores vertical motion)
+#   - Wheel odometry from /wheel/odom
+#   - IMU yaw from /imu
+#   - GPS odometry from /odometry/gps for global localization
+#
+ekf_filter_node_odom:
+  ros__parameters:
+    frequency: 30.0
+    sensor_timeout: 0.2
+    two_d_mode: true
+    transform_time_offset: 0.0
+    transform_timeout: 0.0
+    print_diagnostics: true
+    publish_tf: false
+    publish_acceleration: false
+
+    map_frame: map
+    odom_frame: odom
+    base_link_frame: base_link
+    world_frame: odom
+
+    odom0: /wheel/odom
+    odom0_config: [false, false, false,
+                   false, false, false,
+                   true,  false, false,
+                   false, false, true,
+                   false, false, false]
+    odom0_queue_size: 10
+    odom0_differential: false
+    odom0_relative: false
+
+    imu0: /imu
+    imu0_config: [false, false, false,
+                  false, false, true,
+                  false, false, false,
+                  false, false, false,
+                  false, false, false]
+    imu0_queue_size: 10
+    imu0_differential: false
+    imu0_relative: false
+    imu0_remove_gravitational_acceleration: true
+
+ekf_filter_node_map:
+  ros__parameters:
+    frequency: 30.0
+    sensor_timeout: 0.2
+    two_d_mode: true
+    transform_time_offset: 0.0
+    transform_timeout: 0.0
+    print_diagnostics: true
+    publish_tf: false
+    publish_acceleration: false
+
+    map_frame: map
+    odom_frame: odom
+    base_link_frame: base_link
+    world_frame: map
+
+    odom0: /odom
+    odom0_config: [false, false, false,
+                   false, false, false,
+                   true,  false, false,
+                   false, false, true,
+                   false, false, false]
+    odom0_queue_size: 10
+    odom0_differential: false
+    odom0_relative: false
+
+    odom1: /odometry/gps
+    odom1_config: [true,  true,  false,
+                   false, false, false,
+                   false, false, false,
+                   false, false, false,
+                   false, false, false]
+    odom1_queue_size: 10
+    odom1_differential: false
+    odom1_relative: false
+    odom1_pose_rejection_threshold: 3.0
+
+    imu0: /imu
+    imu0_config: [false, false, false,
+                  false, false, true,
+                  false, false, false,
+                  false, false, false,
+                  false, false, false]
+    imu0_queue_size: 10
+    imu0_differential: false
+    imu0_relative: false
+    imu0_remove_gravitational_acceleration: true
+
+navsat_transform:
+  ros__parameters:
+    frequency: 30.0
+    delay: 1.0
+    magnetic_declination_radians: 0.0
+    yaw_offset: 3.141592653589793
+    zero_altitude: true
+    broadcast_cartesian_transform: false
+    publish_filtered_gps: true
+    use_odometry_yaw: true
+    wait_for_datum: false
