@@ -152,6 +152,10 @@ webots_ros2_tesla_slam/
 └── setup.py                      # Python package installation rules.
 ```
 
+## Demonstration
+
+https://github.com/user-attachments/assets/8209302e-43b1-4ced-9954-4f733328dd78
+
 ## Screenshots
 
 <details>
